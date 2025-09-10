@@ -1,0 +1,21 @@
+{
+  "name": "wx1-sdk",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@webex/contact-center": "^3.8.1-next.39",
+    "lit": "^3.3.1",
+    "vite-plugin-node-polyfills": "^0.24.0"
+  },
+  "devDependencies": {
+    "@types/minimatch": "^6.0.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.1.2"
+  }
+}
