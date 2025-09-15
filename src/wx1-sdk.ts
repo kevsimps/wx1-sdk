@@ -61,6 +61,7 @@ export class Wx1Sdk extends LitElement {
         this.teams = this.profile.teams.map((item: any) => html`<option value=${item.id}>${item.name}</option>`)
         this.idleCodes = this.profile.idleCodes.filter((item: any) => !item.isSystem).map((item: any) => html`<option value=${item.id} @click=${this.changeStatus}>${item.name}</option>`)
         this.wrapupCodes = this.profile.wrapupCodes.filter((item: any) => !item.isSystem).map((item: any) => html`<option value=${item.id}>${item.name}</option>`)
+
         this.webex.cc.on("AgentStateChangeSuccess", (event: any) => {
             // console.log(event))
             this.idleCode.value = event.auxCodeId
@@ -74,7 +75,7 @@ export class Wx1Sdk extends LitElement {
             this.task.once("task:end", (task: ITask) => {
                 console.log("end", task)
                 // alert(`end ${JSON.stringify(task)}`)
-                this.tControls = html`<select>${this.task.wrapupData.wrapUpProps.wrapUpReasonList.map((i:any)=>{return html`<option @click=${this.actionTask.bind(this,"wrapup", i.id, i.name)} value=${i.id}>${i.name}</option>`})}</select>`
+                this.tControls = html`<select>${this.task.wrapupData.wrapUpProps.wrapUpReasonList.map((i: any) => { return html`<option @click=${this.actionTask.bind(this, "wrapup", i.id, i.name)} value=${i.id}>${i.name}</option>` })}</select>`
             })
             this.task.on("task:wrappedup", (task: ITask) => {
                 alert("wrapped")
@@ -83,11 +84,12 @@ export class Wx1Sdk extends LitElement {
                 this.cad = null
             })
 
+
         })
 
     }
 
-    async actionTask(action: string, aux1:string, aux2:string) {
+    async actionTask(action: string, aux1: string, aux2: string) {
         switch (action) {
             case "end": {
                 this.task.end()
@@ -101,9 +103,9 @@ export class Wx1Sdk extends LitElement {
                 this.task.resume()
                 break
             }
-            case "wrapup":{
+            case "wrapup": {
                 this.task.wrapup({
-                    wrapUpReason:`${aux2}`,
+                    wrapUpReason: `${aux2}`,
                     auxCodeId: `${aux1}`
                 })
                 break
@@ -117,10 +119,6 @@ export class Wx1Sdk extends LitElement {
         })
         this.station = await this.webex.cc.stationLogin(this.agentLogin)
         this.loggedIn = true
-
-        // start listeners here
-
-
     }
     async stationLogout() {
         try {
@@ -184,13 +182,13 @@ export class Wx1Sdk extends LitElement {
             <!-- logged in  -->
            ${this.loggedIn ? html`
             <button @click=${this.stationLogout}>Logout</button><button @click=${this.changeStation}>Update Profile</button>
-                ` : html``} 
+               
             <select id="selectIdleCode">
             ${this.idleCodes}
             </select>
             ${this.cad}<br>
             ${this.tControls}
-        
+         ` : html``} 
 
 
         </div>
