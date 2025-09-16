@@ -6,7 +6,7 @@
 
 echo "🚀 Setting up Banking CRM with Webex Contact Center Environment..."
 
-# Verify Node.js installation
+# Verify Node.js installation // test
 if ! command -v node &> /dev/null; then
     echo "❌ Node.js is not installed. Please install Node.js 16+ before running this script."
     exit 1
@@ -53,9 +53,6 @@ EOF
     echo "✅ Parcel configuration created"
 fi
 
-# Create logs directory for application output
-mkdir -p logs
-
 # Test build
 echo "🔧 Testing TypeScript compilation and build process..."
 npm run build > /dev/null 2>&1
@@ -92,6 +89,6 @@ echo ""
 echo "🔧 Troubleshooting:"
 echo "   • Check browser console for detailed logs"
 echo "   • Ensure stable internet connection"
-echo "   
+echo "   "
 echo ""
 echo "Ready to use the Banking CRM with Webex Contact Center! 🎯"

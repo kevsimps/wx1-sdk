@@ -6,6 +6,33 @@ import { LitElement, html, css } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js"
 import Webex, { type ITask } from '@webex/contact-center'
 
+// Unique logging prefix for easy console filtering
+const LOG_PREFIX = '[WX1-SDK]';
+
+// Logging utility with unique keys for filtering - matches crm-app.js pattern
+const Logger = {
+    info: (key: string, message: string, data: any = null) => {
+        const timestamp = new Date().toISOString();
+        console.log(`${LOG_PREFIX}[INFO][${key}] ${timestamp} - ${message}`, data || '');
+    },
+    warn: (key: string, message: string, data: any = null) => {
+        const timestamp = new Date().toISOString();
+        console.warn(`${LOG_PREFIX}[WARN][${key}] ${timestamp} - ${message}`, data || '');
+    },
+    error: (key: string, message: string, error: any = null) => {
+        const timestamp = new Date().toISOString();
+        console.error(`${LOG_PREFIX}[ERROR][${key}] ${timestamp} - ${message}`, error || '');
+    },
+    debug: (key: string, message: string, data: any = null) => {
+        const timestamp = new Date().toISOString();
+        console.log(`${LOG_PREFIX}[DEBUG][${key}] ${timestamp} - ${message}`, data || '');
+    },
+    webex: (key: string, action: string, data: any = null) => {
+        const timestamp = new Date().toISOString();
+        console.log(`${LOG_PREFIX}[WEBEX][${key}] ${timestamp} - ${action}`, data || '');
+    }
+};
+
 @customElement("wx1-sdk")
 export class Wx1Sdk extends LitElement {
     // Public properties
@@ -203,7 +230,7 @@ export class Wx1Sdk extends LitElement {
         });
         new Promise((resolve) => {
             this.webex.once('ready', async () => {
-                console.log('Webex SDK initialized with OAuth token');
+                Logger.info('SDK-INIT', 'Webex SDK initialized with OAuth token');
 
                 this.profile = await this.webex.cc.register()
                 this.getOptions()
@@ -229,18 +256,21 @@ export class Wx1Sdk extends LitElement {
         });
         this.webex.cc.on("task:incoming", (task: ITask) => {
 
-            console.log("incoming", task)
+            Logger.webex('TASK-INCOMING', 'New incoming task received', { 
+                taskUuid: (task as any).uuid, 
+                ani: (task.data as any)?.interaction?.callAssociatedDetails?.ani 
+            });
             this.task = task
             this.cad = Object.entries(this.task.data.interaction.callAssociatedDetails).map(([key, value]) => { return html`<p>${key}: ${value}</p>` })
             
             this.ani = this.task.data.interaction.callAssociatedDetails.ani
-            console.log("ANI is ", this.ani)
+            Logger.debug('ANI-EXTRACT', 'Extracted ANI from task', { ani: this.ani });
             // Call CRM app's searchCustomers function dynamically
             this.callCrmSearch(this.ani);
             
             this.tControls = html`<button @click=${this.actionTask.bind(this, 'hold')}>Hold</button><button @click=${this.actionTask.bind(this, 'resume')}>Resume</button><button @click=${this.actionTask.bind(this, 'end')}>End</button>`
             this.task.once("task:end", (task: ITask) => {
-                console.log("end", task)
+                Logger.webex('TASK-END', 'Task ended', { taskUuid: (task as any).uuid });
                 // alert(`end ${JSON.stringify(task)}`)
                 this.tControls = html`<select @change=${(e: any) => this.handleWrapupSelection(e)}>
                     <option value="">Select wrap-up reason...</option>
@@ -263,7 +293,7 @@ export class Wx1Sdk extends LitElement {
      * Handle task actions (hold, resume, end, wrapup)
      */
     async actionTask(action: string, aux1:string, aux2:string) {
-        console.log("clicked", +action, aux1, aux2);
+        Logger.webex('TASK-ACTION', `Task action triggered: ${action}`, { action, aux1, aux2 });
         switch (action) {
             case "end": {
                 this.task.end()
@@ -293,7 +323,10 @@ export class Wx1Sdk extends LitElement {
         
         if (selectedValue && selectedOption) {
             const wrapupName = selectedOption.dataset.name || selectedOption.textContent;
-            console.log("Wrap-up selected:", selectedValue, wrapupName);
+            Logger.webex('WRAPUP-SELECT', 'Wrap-up code selected', { 
+                wrapupId: selectedValue, 
+                wrapupName: wrapupName 
+            });
             this.actionTask("wrapup", selectedValue, wrapupName);
         }
     }
@@ -309,24 +342,24 @@ export class Wx1Sdk extends LitElement {
             
             // Try to access and call the searchCustomers function from crm-app.js
             if (parentWindow && parentWindow.searchCustomers && typeof parentWindow.searchCustomers === 'function') {
-                console.log('Found parent window searchCustomers function');
+                Logger.info('CRM-INTEGRATION', 'Found parent window searchCustomers function');
                 // Set the search input value in the parent window
                 const searchInput = parentWindow.document.getElementById('search-input');
                 if (searchInput) {
                     (searchInput as HTMLInputElement).value = searchTerm;
                     // Call the searchCustomers function
                     parentWindow.searchCustomers();
-                    console.log('Called parent window searchCustomers function');
+                    Logger.webex('CRM-SEARCH', 'Called parent window searchCustomers function', { searchTerm });
                     
                     // After calling search, get the customer data and show popup
                     setTimeout(() => {
-                        console.log('Attempting to show customer data from CRM');
+                        Logger.debug('CRM-POPUP', 'Attempting to show customer data from CRM');
                         this.showCustomerDataFromCrm(parentWindow, searchTerm);
                     }, 500); // Wait for search to complete
                 }
             } 
         } catch (error) {
-            console.error('Error calling CRM search:', error);
+            Logger.error('CRM-SEARCH', 'Error calling CRM search', error);
         }
     }
 
@@ -337,28 +370,35 @@ export class Wx1Sdk extends LitElement {
             
             // Method 1: Direct access from window
             if (windowContext.customers) {
-                console.log('Method 1: Found customers in windowContext');
+                Logger.debug('CRM-DATA', 'Method 1: Found customers in windowContext');
                 customers = windowContext.customers;
             }
             else {
-                console.log('No customers found in windowContext');
+                Logger.debug('CRM-DATA', 'No customers found in windowContext');
             }
             
-            console.log('Found customers in CRM:', customers);
-            console.log('Number of customers found:', Object.keys(customers).length);
+            Logger.debug('CRM-DATA', 'Found customers in CRM', { 
+                customerCount: Object.keys(customers).length 
+            });
 
             // Find customer matching the search term
             let foundCustomer = null;
             for (const customerId in customers) {
                 const customer = customers[customerId];
-                console.log('Checking customer:', customer);
+                Logger.debug('CRM-SEARCH', 'Checking customer', { 
+                    customerId, 
+                    customerName: customer?.firstName + ' ' + customer?.lastName 
+                });
                 if (customer && customer.firstName && customer.lastName &&
                     (customer.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     customer.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     (customer.phone && customer.phone.includes(searchTerm)) ||
                     (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())))) {
                     foundCustomer = customer;
-                    console.log('Found matching customer:', foundCustomer);
+                    Logger.info('CRM-MATCH', 'Found matching customer', { 
+                        customerName: foundCustomer.firstName + ' ' + foundCustomer.lastName,
+                        searchTerm 
+                    });
                     break;
                 }
             }
@@ -366,11 +406,13 @@ export class Wx1Sdk extends LitElement {
             if (foundCustomer) {
                 this.createCustomerPopup(foundCustomer, 'Customer Found in CRM');
             } else {
-                console.log('No matching customer found for search term:', searchTerm);
-                console.log('Available customers:', Object.keys(customers));
+                Logger.warn('CRM-NO-MATCH', 'No matching customer found', { 
+                    searchTerm,
+                    availableCustomers: Object.keys(customers)
+                });
             }
         } catch (error) {
-            console.error('Error accessing CRM customer data:', error);
+            Logger.error('CRM-DATA', 'Error accessing CRM customer data', error);
         }
     }
 
@@ -449,7 +491,9 @@ export class Wx1Sdk extends LitElement {
         overlay.appendChild(popup);
         document.body.appendChild(overlay);
         
-        console.log('Customer popup displayed:', customer.firstName + ' ' + customer.lastName);
+        Logger.info('CRM-POPUP', 'Customer popup displayed', { 
+            customerName: customer.firstName + ' ' + customer.lastName 
+        });
         
         // Close popup when clicking overlay
         overlay.addEventListener('click', (e) => {
@@ -462,7 +506,7 @@ export class Wx1Sdk extends LitElement {
         setTimeout(() => {
             if (overlay.parentNode) {
                 overlay.remove();
-                console.log('Customer popup auto-closed');
+                Logger.debug('CRM-POPUP', 'Customer popup auto-closed');
             }
         }, 15000);
     }
@@ -472,7 +516,7 @@ export class Wx1Sdk extends LitElement {
      */
     async stationLogin() {
         this.webex.cc.on('agent:stationLoginSuccess', (eventData: any) => {
-            console.log('Station login successful via event:', eventData);
+            Logger.info('STATION-LOGIN', 'Station login successful via event', eventData);
         })
         this.station = await this.webex.cc.stationLogin(this.agentLogin)
         this.loggedIn = true
@@ -487,12 +531,12 @@ export class Wx1Sdk extends LitElement {
     async stationLogout() {
         try {
             await this.webex.cc.stationLogout({ logoutReason: 'End of shift' })
-            console.log('Logged out successfully');
+            Logger.info('STATION-LOGOUT', 'Logged out successfully');
             this.loggedIn = false
             await this.webex.cc.deregister()
             this.profile = null
         } catch (error) {
-            console.error('Logout failed:', error);
+            Logger.error('STATION-LOGOUT', 'Logout failed', error);
         }
     }
     
@@ -508,11 +552,14 @@ export class Wx1Sdk extends LitElement {
                 auxCodeId: e.target.value,//targetAuxCodeId,    // e.g., "auxCodeIdForLunch"
                 lastStateChangeReason: 'User Initiated'
             });
-            console.log('State set successfully:', response);
+            Logger.info('AGENT-STATE', 'State set successfully', { 
+                targetState, 
+                auxCodeId: e.target.value 
+            });
             // The agent's state is now updated on the backend.
             return response;
         } catch (error) {
-            console.error('Failed to set state:', error);
+            Logger.error('AGENT-STATE', 'Failed to set state', error);
             throw error;
         }
 
